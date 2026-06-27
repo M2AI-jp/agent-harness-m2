@@ -1,0 +1,57 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"__AGENT_HARNESS_CODEX_HOOK_ROOT__/entry-reminder.sh\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"__AGENT_HARNESS_CODEX_HOOK_ROOT__/bash-protect.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"__AGENT_HARNESS_CODEX_HOOK_ROOT__/branch-guard.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"__AGENT_HARNESS_CODEX_HOOK_ROOT__/map-guard.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"__AGENT_HARNESS_CODEX_HOOK_ROOT__/translate-guard.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"__AGENT_HARNESS_CODEX_HOOK_ROOT__/scope-guard.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"__AGENT_HARNESS_CODEX_HOOK_ROOT__/skill-postrun.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}

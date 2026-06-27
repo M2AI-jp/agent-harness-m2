@@ -1,0 +1,39 @@
+{
+  "name": "agent-harness-m2",
+  "version": "0.3.1",
+  "description": "Claude Code / Codex 用の最小ハーネス — branch / map / translate + scope-guard の4ゲートで、AIがコードに触る前に作業場所・既存構造・依頼解釈・編集範囲を確定する。",
+  "author": {
+    "name": "M2AI",
+    "email": "skool@m2ai.jp",
+    "url": "https://github.com/M2AI-jp"
+  },
+  "homepage": "https://github.com/M2AI-jp/agent-harness-m2",
+  "repository": "https://github.com/M2AI-jp/agent-harness-m2",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "claude-code",
+    "agent",
+    "harness",
+    "hooks",
+    "skills"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Agent Harness M2",
+    "shortDescription": "Claude Code / Codex 用の最小ハーネス — branch / map / translate + scope-guard の4ゲートで、AIがコードに触る前に作業場所・既存構造・依頼解釈・編集範囲を確定する。",
+    "longDescription": "Agent Harness M2 is a project-local pre-work protocol for Claude Code / Codex. It packages AGENTS.md, CLAUDE.md, skills, hooks, installers, and a doctor script for branch -> map -> translate plus automatic scope-guard enforcement before implementation. It preserves the user's original prompt in Git history, blocks Edit/Write until the task-aware current-task state marks map and translate complete, blocks edits outside scope.files after translate, and leaves eval / test / review to the target project.",
+    "developerName": "M2AI",
+    "category": "Productivity",
+    "capabilities": [
+      "Write"
+    ],
+    "websiteURL": "https://github.com/M2AI-jp/agent-harness-m2",
+    "defaultPrompt": [
+      "Install the harness in this repo.",
+      "Run the harness doctor.",
+      "Explain the gates."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

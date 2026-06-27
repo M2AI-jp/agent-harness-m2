@@ -1,0 +1,12 @@
+# Keep every text file LF in the repo and on checkout, on all platforms.
+# This guarantees the shell / Ruby / YAML files are never served with CRLF
+# or platform-dependent line endings.
+* text=auto eol=lf
+
+# Be explicit for the files that are parsed or executed.
+*.sh    text eol=lf
+*.rb    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf

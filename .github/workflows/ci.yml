@@ -1,0 +1,232 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: File integrity
+        run: |
+          set -eu
+          check() {
+            n=$(wc -l < "$2")
+            if [ "$n" -lt "$1" ]; then
+              echo "FAIL: $2 has $n line(s) (expected >= $1)"; exit 1
+            fi
+            echo "ok: $2 = $n lines"
+          }
+          check 5  hooks/branch-guard.sh
+          check 5  hooks/map-guard.sh
+          check 5  hooks/translate-guard.sh
+          check 8  hooks/entry-reminder.sh
+          check 20 scripts/install-codex.sh
+          check 20 scripts/install-claude.sh
+          check 20 scripts/doctor.sh
+          check 20 skills/branch/SKILL.md
+          check 20 skills/translate/SKILL.md
+          check 20 skills/map/SKILL.md
+          check 20 templates/codex/AGENTS.md
+          check 20 templates/claude/CLAUDE.md
+          check 20 docs/technical-notes.md
+          bad=0
+          for f in $(git ls-files); do
+            perl -CSD -ne 'exit 1 if /[\x{0085}\x{00AD}\x{200B}-\x{200F}\x{2028}\x{2029}\x{202A}-\x{202E}\x{2060}-\x{2064}\x{2066}-\x{2069}\x{FEFF}]/' "$f" || { echo "FAIL: $f has a hidden/bidirectional/zero-width character"; bad=1; }
+          done
+          [ "$bad" = "0" ] && echo "ok: no hidden/bidirectional/zero-width characters in tracked files"
+          [ "$bad" = "0" ]
+      - name: Check shell syntax
+        run: |
+          bash -n hooks/*.sh
+          bash -n scripts/*.sh
+      - name: Check JSON syntax
+        run: |
+          jq empty templates/codex/hooks.json
+          jq empty templates/claude/settings.json
+          jq empty .codex-plugin/plugin.json
+          jq empty .agents/plugins/marketplace.json
+      - name: Check current contract
+        run: |
+          set -eu
+          test -z "$(git ls-files .claude .codex .agents/skills)"
+          test -f .agents/plugins/marketplace.json
+          grep -q "translate-guard.sh" templates/claude/settings.json
+          grep -q "translate-guard.sh" templates/codex/hooks.json
+          grep -q "skills/map/SKILL.md" .github/workflows/ci.yml
+          grep -q "commit-candidate" skills/map/SKILL.md
+          grep -q "push-candidate" skills/map/SKILL.md
+          grep -q "merge-candidate" skills/map/SKILL.md
+          test ! -e skills/ship/SKILL.md
+          grep -q "/branch -> /map -> /translate" hooks/entry-reminder.sh
+          grep -q ".agent-harness/current-task.json" skills/branch/SKILL.md
+          grep -q ".agent-harness/current-task.md" skills/branch/SKILL.md
+          grep -q "正式な保存先は Git commit body" skills/branch/SKILL.md
+          grep -q 'block_start="<!-- agent-harness-m2:start -->"' scripts/install-claude.sh
+          grep -q 'block_start="<!-- agent-harness-m2:start -->"' scripts/install-codex.sh
+          grep -q ".agent-harness/current-task.json" hooks/map-guard.sh
+          grep -q ".agent-harness/current-task.json" hooks/translate-guard.sh
+          grep -q "prompt hash mismatch" hooks/map-guard.sh
+          grep -q "prompt hash mismatch" hooks/translate-guard.sh
+          grep -q ".agent-harness/user-prompt.txt" hooks/commit-msg.sh
+          grep -q "User prompt:" hooks/commit-msg.sh
+          grep -q "一時バッファ" README.md
+          grep -q "正式な保存先はコミット本文" README.md
+          grep -q "基本的に非推奨" README.md
+          grep -q "installed copy" README.md
+          grep -q "M2 is not an eval runner" docs/technical-notes.md
+          grep -q "Canonical Source And Installed Copies" docs/technical-notes.md
+          grep -q "not recommended by default" docs/technical-notes.md
+          grep -Eq "branch.*map.*translate" README.md
+          grep -Eq "eval runner.*ではありません" README.md
+          grep -Eq "doctor.*別物" README.md
+          grep -Eq "外部操作を.*禁止するものではありません" README.md
+          grep -q "## 4 ゲート" README.md
+          grep -q "## なぜ eval を入れていないか" README.md
+          grep -q "does not provide an OS-level sandbox" docs/technical-notes.md
+      - name: Check managed instruction blocks
+        run: |
+          set -eu
+          extract_block() {
+            awk '
+              $0 == "<!-- agent-harness-m2:start -->" { in_block=1 }
+              in_block { print }
+              $0 == "<!-- agent-harness-m2:end -->" { in_block=0 }
+            ' "$1"
+          }
+          codex_block="$(mktemp)"
+          {
+            printf '%s\n' '<!-- agent-harness-m2:start -->'
+            cat templates/codex/AGENTS.md
+            printf '%s\n' '<!-- agent-harness-m2:end -->'
+          } > "$codex_block"
+          extract_block AGENTS.md | cmp "$codex_block" -
+          claude_block="$(mktemp)"
+          {
+            printf '%s\n' '<!-- agent-harness-m2:start -->'
+            cat templates/claude/CLAUDE.md
+            printf '%s\n' '<!-- agent-harness-m2:end -->'
+          } > "$claude_block"
+          extract_block CLAUDE.md | cmp "$claude_block" -
+      - name: Legacy term search
+        run: |
+          set -eu
+          allowed='^(\./)?(scripts/(install-claude|install-codex|doctor)\\.sh|\\.github/workflows/ci\\.yml):'
+          rg -n "(/orient|skills/orient|\\borient\\b|verify-done|strict-gate|verification contract|4ゲート|最後の一言|完了検証ゲート)" . \
+            -g '!/.git/**' \
+            -g '!/.agent-harness/**' |
+            grep -Ev "$allowed" &&
+            { echo "FAIL: legacy term found outside cleanup/check context"; exit 1; } ||
+            echo "ok: no legacy terms outside cleanup/check context"
+      - name: Ensure verify core is absent
+        run: |
+          test ! -e skills/orient
+          test ! -e skills/verify-done
+          test ! -e hooks/verify-done.sh
+          test ! -e hooks/strict-gate.sh
+          test ! -e verify
+          test ! -e examples/minimal/verify-contract.yml
+      - name: Smoke install
+        run: |
+          tmp="$(mktemp -d)"
+          git init "$tmp"
+          mkdir -p "$tmp/.agent-harness"
+          touch "$tmp/.agent-harness/map-done" "$tmp/.agent-harness/translate-done"
+          bash scripts/install-codex.sh "$tmp"
+          bash scripts/install-claude.sh "$tmp"
+          bash scripts/doctor.sh "$tmp"
+          diff -ru skills "$tmp/.agents/skills"
+          diff -ru skills "$tmp/.claude/skills"
+          for hook in branch-guard.sh entry-reminder.sh map-guard.sh translate-guard.sh scope-guard.sh skill-postrun.sh bash-protect.sh; do
+            cmp "hooks/$hook" "$tmp/.codex/hooks/$hook"
+            cmp "hooks/$hook" "$tmp/.claude/hooks/$hook"
+          done
+          jq empty "$tmp/.codex/hooks.json"
+          grep -qF "$tmp/.codex/hooks/" "$tmp/.codex/hooks.json"
+          ! grep -q "__AGENT_HARNESS_" "$tmp/.codex/hooks.json"
+          jq empty "$tmp/.claude/settings.json"
+          grep -qF "$tmp/.claude/hooks/" "$tmp/.claude/settings.json"
+          ! grep -q "__AGENT_HARNESS_" "$tmp/.claude/settings.json"
+          cmp hooks/commit-msg.sh "$tmp/.git/hooks/commit-msg"
+          test ! -e "$tmp/.agents/skills/verify-done"
+          test ! -e "$tmp/.claude/skills/verify-done"
+          test ! -e "$tmp/.agent-harness/verify"
+          test ! -e "$tmp/.agent-harness/map-done"
+          test ! -e "$tmp/.agent-harness/translate-done"
+      - name: Behavioral checks
+        run: |
+          set -eu
+          tmp="$(mktemp -d)"
+          git init -q "$tmp"
+          git -C "$tmp" config user.email ci@example.com
+          git -C "$tmp" config user.name CI
+          git -C "$tmp" commit -q --allow-empty -m init
+          git -C "$tmp" checkout -q -B main
+          if ( cd "$tmp" && bash "$GITHUB_WORKSPACE/hooks/branch-guard.sh" ); then
+            echo "FAIL: branch-guard did not block on main"; exit 1
+          fi
+          echo "ok: branch-guard blocked on main"
+          git -C "$tmp" checkout -q -B feature/test
+          ( cd "$tmp" && bash "$GITHUB_WORKSPACE/hooks/branch-guard.sh" )
+          echo "ok: branch-guard allowed on feature branch"
+          reminder="$(cd "$tmp" && bash "$GITHUB_WORKSPACE/hooks/entry-reminder.sh")"
+          echo "$reminder" | grep -q "/branch -> /map -> /translate"
+          echo "$reminder" | grep -q "original prompt"
+          echo "$reminder" | grep -q "build a map"
+          echo "ok: entry reminder carries the four-gate contract"
+          if ( cd "$tmp" && bash "$GITHUB_WORKSPACE/hooks/map-guard.sh" ); then
+            echo "FAIL: map-guard did not block without current-task.json"; exit 1
+          fi
+          mkdir -p "$tmp/.agent-harness"
+          printf "make a screen\nwith chat\n" > "$tmp/.agent-harness/user-prompt.txt"
+          prompt_hash="$(sha256sum "$tmp/.agent-harness/user-prompt.txt" | awk '{print $1}')"
+          cat > "$tmp/.agent-harness/current-task.json" <<STATE
+          {
+            "schema": 1,
+            "task_id": "20260618-ci",
+            "branch": "feature/test",
+            "prompt_hash": "sha256:$prompt_hash",
+            "phase": {
+              "branch": "done",
+              "map": "pending",
+              "translate": "pending"
+            },
+            "scope_hash": "",
+            "updated_at": "2026-06-18T00:00:00Z"
+          }
+          STATE
+          mkdir -p "$tmp/.agent-harness/.gates"
+          for g in branch map translate; do
+            printf 'skill=%s\nprompt_hash=sha256:%s\nbranch=feature/test\n' "$g" "$prompt_hash" > "$tmp/.agent-harness/.gates/$g.done"
+          done
+          if ( cd "$tmp" && bash "$GITHUB_WORKSPACE/hooks/map-guard.sh" ); then
+            echo "FAIL: map-guard did not block pending map phase"; exit 1
+          fi
+          sed -i 's/"map": "pending"/"map": "done"/' "$tmp/.agent-harness/current-task.json"
+          ( cd "$tmp" && bash "$GITHUB_WORKSPACE/hooks/map-guard.sh" )
+          echo "ok: map-guard follows current-task map phase"
+          if ( cd "$tmp" && bash "$GITHUB_WORKSPACE/hooks/translate-guard.sh" ); then
+            echo "FAIL: translate-guard did not block pending translate phase"; exit 1
+          fi
+          sed -i 's/"translate": "pending"/"translate": "done"/' "$tmp/.agent-harness/current-task.json"
+          ( cd "$tmp" && bash "$GITHUB_WORKSPACE/hooks/translate-guard.sh" )
+          echo "ok: translate-guard follows current-task translate phase"
+          cp "$GITHUB_WORKSPACE/hooks/commit-msg.sh" "$tmp/.git/hooks/commit-msg"
+          chmod +x "$tmp/.git/hooks/commit-msg"
+          printf "feat: sample\n" > "$tmp/msg"
+          ( cd "$tmp" && .git/hooks/commit-msg msg )
+          grep -q "^User prompt: make a screen" "$tmp/msg"
+          ( cd "$tmp" && .git/hooks/commit-msg msg )
+          [ "$(grep -c "^User prompt:" "$tmp/msg")" -eq 1 ]
+          echo "ok: commit-msg appends User prompt once"
+          printf 'FORGED\n' > "$tmp/.agent-harness/user-prompt.txt"
+          printf 'feat: swap\n' > "$tmp/msg2"
+          ( cd "$tmp" && .git/hooks/commit-msg msg2 )
+          if grep -q "^User prompt:" "$tmp/msg2"; then
+            echo "FAIL: commit-msg appended a hash-mismatched (forged) prompt"; exit 1
+          fi
+          echo "ok: commit-msg refuses a hash-mismatched prompt"
+      - name: Bypass-defense regression suite
+        run: bash tests/verify-bypass-defenses.sh "$(pwd)/hooks"
