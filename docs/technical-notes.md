@@ -2,14 +2,14 @@
 
 Agent Harness M2 is a pre-work protocol for Claude Code / Codex. It is not a replacement for the official product behavior, and it is not a standalone agent runtime.
 
-M3 remains a pre-work protocol.
+M2 remains a pre-work protocol.
 Its core path is:
 
 ```text
 /branch -> /map -> /translate -> scope-guard
 ```
 
-Less approval, not more autonomy: M3 reduces human confirmation by constraining the agent's pre-edit loop, not by granting broader authority.
+Less approval, not more autonomy: M2 reduces human confirmation by constraining the agent's pre-edit loop, not by granting broader authority.
 
 ## Protocol, Not Built-In Product Behavior
 
@@ -101,13 +101,13 @@ M2 stops at pre-work intervention. It does not judge whether the implementation 
 These surfacings are *detection*, not execution. They are an early warning that work may be getting too large, mixing topics, or ready for a human-directed GitHub workflow.
 `/map` does not itself commit, push, create a PR, merge, or sync local branches.
 
-## GitHub Workflow Is Outside M3 Core
+## GitHub Workflow Is Outside M2 Core
 
 `/map` can surface `push-candidate` or `merge-candidate` states.
 Those are detection/recommendation only.
-M3 does not own commit, push, PR creation, CI review, merge, or local sync.
+M2 does not own commit, push, PR creation, CI review, merge, or local sync.
 
-Operational GitHub workflows are outside the M3 core path. They are not installed as skills, are not hook-enforced, and remain a human-directed handoff boundary.
+Operational GitHub workflows are outside the M2 core path. They are not installed as skills, are not hook-enforced, and remain a human-directed handoff boundary.
 
 ## Canonical Source And Installed Copies
 
