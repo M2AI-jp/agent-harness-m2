@@ -2,7 +2,7 @@
 
 ## 0.3.1 - 2026-06-28
 
-- Remove the experimental `/ship` skill and its default install wiring. M3 core is back to the 4-gate pre-work path: `/branch -> /map -> /translate -> scope-guard`.
+- Remove the experimental `/ship` skill and its default install wiring. M2 core is back to the 4-gate pre-work path: `/branch -> /map -> /translate -> scope-guard`.
 - `README.md` / `docs/technical-notes.md`: align the documented core with the 4-gate structure and state that GitHub workflow behavior is detection/recommendation only, not execution.
 - `skills/map/SKILL.md`: keep `push-candidate` / `merge-candidate` surfacing, but remove `/ship` references and clarify that `/map` never commits, pushes, opens a PR, or merges.
 - `.github/workflows/ci.yml`: remove the `skills/ship/SKILL.md` line-count assertion and assert that `/ship` is absent from the current contract.
